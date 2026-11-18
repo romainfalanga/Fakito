@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fakito</title>
+<meta name="description" content="Fakito, le labo des mots : rimes, sons, lettres, synonymes et carnet d'écriture pour trouver tes paroles, sur 125 000 mots français.">
+<meta name="theme-color" content="#edf0f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d1021" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Fakito">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header id="brandbar">
+  <a class="brand" href="./" aria-label="Fakito, accueil">Fak<span class="mk">ito</span></a>
+  <span class="status" id="status">Chargement…</span>
+</header>
+<div id="shell">
+  <nav id="side" aria-label="Outils"></nav>
+  <div id="col">
+    <div id="bar">
+      <div class="barrow">
+        <label class="field" id="field">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+          <input id="q" type="text" enterkeyhint="search" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+          <button type="button" id="clr" aria-label="Effacer" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+        </label>
+        <div class="toks" id="toks" hidden></div>
+        <h1 id="ttl" hidden></h1>
+        <button type="button" class="iconbtn" id="bset" aria-label="Réglages et filtres">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.5"/><circle cx="8" cy="17" r="2.5"/></svg>
+          <span class="badge" id="badge" hidden></span>
+        </button>
+      </div>
+      <div class="read" id="read"></div>
+    </div>
+    <div class="strip" id="tools" role="tablist" aria-label="Outils de cette famille"></div>
+    <div class="strip" id="quick"></div>
+    <section class="panel" id="pick" aria-label="Choisir des sons" hidden></section>
+    <main id="results"></main>
+    <footer>
+      Dictionnaire phonétique : Lexique 3.83 (New, Pallier, Brysbaert &amp; Ferrand), licence CC BY-SA 4.0, <a href="http://www.lexique.org" rel="noopener">lexique.org</a>.
+      Synonymes : thésaurus français de LibreOffice (Dicollecte). La prononciation des mots absents du dictionnaire est estimée et peut se tromper.
+    </footer>
+  </div>
+  <aside class="panel" id="settings" aria-label="Réglages"></aside>
+</div>
+<nav id="tabs" aria-label="Familles d'outils"></nav>
+<div id="scrim" hidden></div>
+<section class="panel" id="menu" aria-label="Actions sur le mot"></section>
+<script src="js/engine.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

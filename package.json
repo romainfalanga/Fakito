@@ -1,0 +1,11 @@
+{
+  "name": "fakito",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fakito, le labo des mots : rimes, sons, lettres, synonymes et carnet d'écriture pour écrire des paroles en français.",
+  "scripts": {
+    "dev": "python3 -m http.server 8080 --directory public",
+    "test": "node --test tests/*.test.js",
+    "deploy": "npx wrangler pages deploy public --project-name fakito --branch main"
+  }
+}
