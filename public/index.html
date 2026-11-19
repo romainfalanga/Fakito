@@ -27,22 +27,32 @@
   <nav id="side" aria-label="Outils"></nav>
   <div id="col">
     <div id="bar">
+      <nav id="tools" aria-label="Recherches principales"></nav>
       <div class="barrow">
-        <label class="field" id="field">
+        <div class="field" id="field">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
-          <input id="q" type="text" enterkeyhint="search" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+          <textarea id="q" rows="1" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Mot ou phrase à chercher"></textarea>
           <button type="button" id="clr" aria-label="Effacer" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
-        </label>
+        </div>
         <div class="toks" id="toks" hidden></div>
-        <h1 id="ttl" hidden></h1>
-        <button type="button" class="iconbtn" id="bset" aria-label="Réglages et filtres">
+      </div>
+    </div>
+    <section class="tool-head" aria-labelledby="ttl">
+      <div class="tool-heading">
+        <h1 id="ttl" tabindex="-1"></h1>
+        <button type="button" class="filter-btn" id="bset" aria-controls="settings" aria-expanded="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.5"/><circle cx="8" cy="17" r="2.5"/></svg>
+          Filtres
           <span class="badge" id="badge" hidden></span>
         </button>
       </div>
-      <div class="read" id="read"></div>
-    </div>
-    <div class="strip" id="tools" role="tablist" aria-label="Outils de cette famille"></div>
+      <p class="tool-intro" id="intro"></p>
+      <div id="context"></div>
+      <details id="pronunciation" hidden>
+        <summary>Prononciation et syllabes</summary>
+        <div class="read" id="read"></div>
+      </details>
+    </section>
     <div class="strip" id="quick"></div>
     <section class="panel" id="pick" aria-label="Choisir des sons" hidden></section>
     <main id="results"></main>
@@ -53,7 +63,16 @@
   </div>
   <aside class="panel" id="settings" aria-label="Réglages"></aside>
 </div>
-<nav id="tabs" aria-label="Familles d'outils"></nav>
+<nav id="tabs" aria-label="Navigation principale"></nav>
+<dialog id="catalog" aria-labelledby="catalog-title">
+  <header class="phead">
+    <h2 id="catalog-title">Tous les outils</h2>
+    <form method="dialog">
+      <button type="submit" class="x" aria-label="Fermer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+    </form>
+  </header>
+  <div id="catalog-list"></div>
+</dialog>
 <div id="scrim" hidden></div>
 <section class="panel" id="menu" aria-label="Actions sur le mot"></section>
 <script src="js/engine.js"></script>

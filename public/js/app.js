@@ -26,18 +26,17 @@
   function pl(n, s, p) { return nf(n) + ' ' + (n > 1 ? (p || s + 's') : s); }
   var ICON = {
     x: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg>',
-    Rimes: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l10-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg>',
-    Sons: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></svg>',
-    Lettres: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19l5.5-14L15 19M6 14h7M18 10v9M18 13.5a3 3 0 1 0 0 2"/></svg>',
-    Sens: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></svg>',
-    'Écrire': '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1-4.5L16.5 4l3.5 3.5L8.5 19z"/><path d="M14 6.5l3.5 3.5"/></svg>'
+    'Écrire': '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1-4.5L16.5 4l3.5 3.5L8.5 19z"/><path d="M14 6.5l3.5 3.5"/></svg>',
+    search: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>',
+    saved: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12v16l-6-4-6 4z"/></svg>',
+    catalog: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>'
   };
 
   var EX_SEED = 'une nuit sans sommeil';
   var EXEMPLE = "Une nuit sans sommeil sous un ciel de béton\nJe compte les étoiles au fond de mon carton\nLe silence me réveille et me parle tout bas\nJ'écris ce que je veille et que je ne dis pas";
   var KEY = 'fakito-v1';
   var ST = {
-    seed: EX_SEED, tool: 'rimes', last: {}, f: { syl: 0, cat: 0, voc: 1, base: false }, loose: false, showPh: false, sort: 'freq',
+    seed: '', tool: 'rimes', searchTool: 'rimes', synWord: '', f: { syl: 0, cat: 0, voc: 1, base: false }, loose: false, showPh: false, sort: 'freq',
     multiN: 0, sens: '', lettres: { q: 'rv', mode: 'any', without: '', min: '', max: '' }, motif: 'r?v*', anag: 'chanson',
     sons: { sel: ['R', 'v'], mode: 'any' }, synRime: '', hasardN: 12, palette: [], texte: EXEMPLE, over: null, recents: []
   };
@@ -46,7 +45,7 @@
   function save() { clearTimeout(saveT); saveT = setTimeout(function () { try { localStorage.setItem(KEY, JSON.stringify(ST)); } catch (e) { } }, 300); }
 
   var Q = null, draw = null, sndOn = null, rT = 0;
-  var qIn = $('#q'), clr = $('#clr'), bar = $('#bar'), brand = $('#brandbar'), scrim = $('#scrim'), menu = $('#menu'), settings = $('#settings'), pick = $('#pick');
+  var qIn = $('#q'), clr = $('#clr'), bar = $('#bar'), scrim = $('#scrim'), menu = $('#menu'), settings = $('#settings'), pick = $('#pick'), catalog = $('#catalog');
   function isMob() { return window.matchMedia('(max-width:759px)').matches; }
   function isWide() { return window.matchMedia('(min-width:1120px)').matches; }
   function seedQ() { Q = L.analyze(ST.seed, ST.over === null ? undefined : ST.over); return Q; }
@@ -55,6 +54,23 @@
   function remember() {
     var s = ST.seed.trim(); if (!s || s === EX_SEED) return;
     ST.recents = [s].concat(ST.recents.filter(function (x) { return x !== s; })).slice(0, 10); save();
+  }
+  function setSeed(value, pronunciation) {
+    ST.seed = value;
+    ST.over = pronunciation === undefined ? null : pronunciation;
+    ST.synWord = '';
+  }
+  function searchFor(value, tool, pronunciation) {
+    remember();
+    setSeed(value, pronunciation);
+    setTool(tool);
+    remember();
+    window.scrollTo(0, 0);
+  }
+  function addToDraft(text, separator) {
+    if (ST.texte === EXEMPLE || !ST.texte.trim()) ST.texte = text;
+    else ST.texte += separator + text;
+    save();
   }
 
   /* ---------- petits composants ---------- */
@@ -118,10 +134,12 @@
   }
   function group(g) {
     var sec = h('section', { class: 'grp' });
-    var hd = h('header', null, h('h2', null, g.title));
-    if (g.tag) hd.appendChild(h('span', { class: 'tag', text: g.tag }));
-    if (g.items) hd.appendChild(h('span', { class: 'c', text: nf(g.items.length) }));
-    sec.appendChild(hd);
+    if (g.title) {
+      var hd = h('header', null, h('h2', null, g.title));
+      if (g.tag) hd.appendChild(h('span', { class: 'tag', text: g.tag }));
+      if (g.items) hd.appendChild(h('span', { class: 'c', text: nf(g.items.length) }));
+      sec.appendChild(hd);
+    }
     if (g.node) sec.appendChild(g.node);
     if (g.items) {
       var items = g.sorted === false ? g.items : sortItems(g.items), box = h('div', { class: 'words' }), shown = 0;
@@ -132,8 +150,15 @@
         box.appendChild(fr);
         if (shown >= items.length) more.hidden = true; else more.textContent = 'Afficher la suite (' + nf(items.length - shown) + ')';
       };
-      more.addEventListener('click', function () { add(300); });
-      sec.appendChild(box); sec.appendChild(more); add(g.first || (isMob() ? 80 : 140));
+      var pageSize = isMob() ? 24 : (g.first || 140);
+      more.addEventListener('click', function () {
+        var next = box.children.length;
+        add(isMob() ? 48 : 300);
+        var item = box.children[next];
+        var button = item && (item.matches('button') ? item : item.querySelector('button'));
+        if (button) button.focus();
+      });
+      sec.appendChild(box); sec.appendChild(more); add(pageSize);
     }
     return sec;
   }
@@ -153,15 +178,15 @@
   /* ---------- outils ---------- */
   var RICH = function (n) { return n >= 3 ? 'rime riche' : n === 2 ? 'rime suffisante' : 'rime pauvre'; };
   function starter() {
-    var box = h('div', { style: 'display:flex;flex-direction:column;gap:14px' });
+    var box = h('div', { class: 'starter' });
     var row = function (label, arr) {
       var b = h('div', { class: 'words' });
       arr.forEach(function (s) { b.appendChild(h('button', { type: 'button', class: 'w', 'data-seed': s, text: s })); });
-      box.appendChild(h('div', { style: 'display:flex;flex-direction:column;gap:6px' }, h('p', { class: 'sub', text: label }), b));
+      box.appendChild(h('div', { class: 'starter-row' }, h('h2', { text: label }), b));
     };
-    if (ST.recents.length) row('Tes dernières recherches', ST.recents);
-    row('Pour essayer', ['une nuit sans sommeil', 'mélancolie', 'mon amour', 'la ville dort', 'rêve']);
-    return [{ title: 'Écris un mot ou une phrase', node: box }];
+    if (ST.recents.length) row('Recherches récentes', ST.recents);
+    row('Essaie avec…', ['une nuit sans sommeil', 'mélancolie', 'la ville dort']);
+    return [{ node: box }];
   }
   function needWord(fn) { return function () { return (!Q || !Q.last) ? starter() : fn(); }; }
   function synSet(word) {
@@ -182,6 +207,15 @@
   var SND = [['a', 'a', 'chat'], ['e', 'é', 'été'], ['E', 'è', 'mer'], ['i', 'i', 'lit'], ['O', 'o', 'port'], ['o', 'ô', 'beau'], ['y', 'u', 'lune'], ['u', 'ou', 'loup'], ['2', 'eu', 'feu'], ['9', 'œ', 'peur'], ['°', 'e', 'le'], ['@', 'an', 'temps'], ['5', 'in', 'matin'], ['§', 'on', 'pont'],
   ['p', 'p'], ['b', 'b'], ['t', 't'], ['d', 'd'], ['k', 'k', 'car'], ['g', 'g', 'gare'], ['f', 'f'], ['v', 'v'], ['s', 's'], ['z', 'z'], ['S', 'ch'], ['Z', 'j'], ['m', 'm'], ['n', 'n'], ['N', 'gn'], ['l', 'l'], ['R', 'r'], ['j', 'y', 'paille'], ['w', 'w', 'oui'], ['8', 'u', 'nuit']];
   var SLAB = {}; SND.forEach(function (s) { SLAB[s[0]] = s[1]; });
+  function multiOptions() {
+    var max = Q ? Math.min(6, Q.syl.length) : 2, opts = [[0, 'Auto']];
+    for (var n = 2; n <= max; n++) opts.push([n, String(n)]);
+    return opts;
+  }
+  function defaultSynonymTarget() {
+    var whole = ST.seed.trim().toLowerCase();
+    return D.byO.has(whole) || L.T.map.has(whole) ? whole : Q.last.raw;
+  }
 
   var TOOLS = [
     {
@@ -201,11 +235,11 @@
       id: 'multi', g: 'Rimes', name: 'Multisyllabes', full: 'Rimes multisyllabiques', input: 'seed', filt: 1,
       desc: 'Les mots qui reprennent la même suite de voyelles sur plusieurs syllabes, comme dans le rap : la consonance entière de ta fin de phrase.',
       quick: function (el) {
-        var max = Q ? Math.min(6, Q.syl.length) : 2, opts = [[0, 'Auto']];
-        for (var n = 2; n <= Math.max(2, max); n++) opts.push([n, String(n)]);
-        if (ST.multiN > max) ST.multiN = 0;
-        qrow(el, 'Écho sur', opts, function () { return ST.multiN; }, function (v) { ST.multiN = v; refresh(); });
+        qrow(el, 'Écho sur', multiOptions(), function () { return ST.multiN; }, function (v) { ST.multiN = v; refresh(); });
         el.appendChild(h('span', { class: 'qlab', text: 'syllabes' }));
+      },
+      extra: function (el) {
+        el.appendChild(fldDiv('Longueur de l’écho en syllabes', seg(multiOptions(), function () { return ST.multiN; }, function (v) { ST.multiN = v; refresh(); })));
       },
       run: needWord(function () {
         var N = ST.multiN || Math.max(Math.min(2, Q.syl.length), Math.min(3, Q.last.syl.length));
@@ -350,7 +384,7 @@
             type: 'button', class: 'qchip', text: o[1], onmousedown: function (e) { e.preventDefault(); }, onclick: function () {
               var a = qIn.selectionStart, b = qIn.selectionEnd, v = qIn.value;
               if (a === null || a === undefined) { a = b = v.length; }
-              qIn.value = v.slice(0, a) + o[0] + v.slice(b); ST.motif = qIn.value; clr.hidden = !qIn.value;
+              qIn.value = v.slice(0, a) + o[0] + v.slice(b); ST.motif = qIn.value; fitQuery();
               try { qIn.setSelectionRange(a + 1, a + 1); } catch (e) { }
               refresh();
             }
@@ -384,8 +418,7 @@
       extra: function (el) { el.appendChild(fld('Qui rime avec', txt('c-synrime', ST.synRime, 'ex. amour', function (v) { ST.synRime = v; later(); }))); },
       run: needWord(function () {
         if (!L.T.ready) return [{ title: 'Chargement', node: empty('Le dictionnaire des synonymes arrive dans un instant.') }];
-        var whole = ST.seed.trim().toLowerCase();
-        var word = D.byO.has(whole) || L.T.map.has(whole) ? whole : Q.last.raw;
+        var word = ST.synWord || defaultSynonymTarget();
         var s = L.synonymes(word), out = [], nuc = '';
         if (ST.synRime.trim()) { var rq = L.analyze(ST.synRime); if (rq.last) nuc = L.nucleus(L.nz(rq.phon)); }
         var keep = function (arr) {
@@ -435,14 +468,14 @@
         return out;
       }
     },
-    { id: 'palette', g: 'Écrire', name: 'Ma palette', input: null, filt: 0, desc: 'Les mots que tu as gardés en chemin. Ils restent enregistrés sur cet appareil.', custom: palette }
+    { id: 'palette', g: 'Écrire', name: 'Mots gardés', input: null, filt: 0, desc: 'Les mots que tu as gardés en chemin. Ils restent enregistrés sur cet appareil.', custom: palette }
   ];
   var BY = {}, GROUPS = [], GT = {};
   TOOLS.forEach(function (t) { BY[t.id] = t; if (!GT[t.g]) { GT[t.g] = []; GROUPS.push(t.g); } GT[t.g].push(t); });
 
   /* ---------- atelier ---------- */
   function atelier(res) {
-    var ta = h('textarea', { id: 'texte', spellcheck: 'true', autocapitalize: 'sentences', placeholder: 'Écris ton couplet ici, une ligne par vers…' });
+    var ta = h('textarea', { id: 'texte', 'aria-label': 'Ton texte', spellcheck: 'true', autocapitalize: 'sentences', placeholder: 'Écris ton couplet ici, une ligne par vers…' });
     ta.value = ST.texte;
     var gut = h('div', { class: 'gut', 'aria-hidden': 'true' }), mir = h('div', { class: 'mir', 'aria-hidden': 'true' });
     var ed = h('div', { class: 'ed' }, gut, ta, mir);
@@ -489,9 +522,15 @@
           if (ci === lastW && rl !== '') b.className = 'c' + (rl % 6 + 1);
           tx.appendChild(b);
         });
-        box.appendChild(h('div', { class: 'ln' }, h('span', { class: 'k' }, h('b', { text: String(a.n) }), a.extra ? ' +' + a.extra : ''), tx));
+        var find = h('button', {
+          type: 'button', class: 'line-search', html: ICON.search,
+          'aria-label': 'Chercher des rimes pour la ligne ' + (li + 1),
+          title: 'Chercher des rimes pour cette ligne',
+          onclick: function () { searchFor(line.trim(), 'rimes'); }
+        });
+        box.appendChild(h('div', { class: 'ln' }, h('span', { class: 'k' }, h('b', { text: String(a.n) }), a.extra ? ' +' + a.extra : ''), tx, find));
       });
-      out.appendChild(group({ title: 'Lecture', tag: 'touche un mot pour le travailler', node: box }));
+      out.appendChild(group({ title: 'Lecture', tag: 'la loupe cherche les rimes d’un vers', node: box }));
       out.appendChild(h('p', { class: 'hint', text: 'Le chiffre compte les syllabes comme on les parle ; « +2 » signale deux e muets que tu peux choisir de faire sonner. Les lignes qui riment partagent la même couleur.' }));
       var keys = Object.keys(snd).sort(function (x, y) { return snd[y] - snd[x]; });
       var row = function (f) {
@@ -510,6 +549,17 @@
     ta.addEventListener('input', function () { ST.texte = ta.value; save(); ta.style.height = 'auto'; ta.style.height = Math.max(132, ta.scrollHeight) + 'px'; clearTimeout(pT); pT = setTimeout(paint, 160); });
     atelier.relayout = function () { if (document.body.contains(ta)) layout(); };
     var sure = false, clrB = h('button', { type: 'button', class: 'btn', text: 'Vider la page', onclick: function () { if (ST.texte.trim() && ST.texte !== EXEMPLE && !sure) { sure = true; clrB.textContent = 'Confirmer : tout effacer'; return; } sure = false; clrB.textContent = 'Vider la page'; ta.value = ''; ST.texte = ''; save(); paint(); ta.focus(); } });
+    var query = ST.seed.trim();
+    if (query) {
+      var use = h('button', { type: 'button', class: 'btn', text: 'Ajouter au texte', onclick: function () {
+        addToDraft(query, ST.texte.endsWith('\n') ? '' : '\n');
+        ta.value = ST.texte;
+        paint();
+        use.textContent = 'Phrase ajoutée';
+        use.disabled = true;
+      } });
+      res.appendChild(h('div', { class: 'draft-query' }, h('p', null, h('span', { text: 'Dernière recherche' }), h('strong', { text: query })), use));
+    }
     res.appendChild(ed);
     res.appendChild(h('div', { class: 'row' }, badge, clrB, h('button', { type: 'button', class: 'btn', text: 'Copier le texte', onclick: function (e) { copy(ST.texte, e.target, 'Copier le texte'); } })));
     res.appendChild(out);
@@ -520,11 +570,11 @@
 
   /* ---------- palette ---------- */
   function palette(res) {
-    if (!ST.palette.length) { res.appendChild(empty('Ta palette est vide. Touche n’importe quel mot dans un outil, puis « Garder dans ma palette », pour le retrouver ici.')); return; }
+    if (!ST.palette.length) { res.appendChild(empty('Touche un mot dans les résultats, puis « Garder ce mot », pour le retrouver ici.')); return; }
     var box = h('div', { class: 'words' });
     ST.palette.forEach(function (w) { box.appendChild(chip({ t: w })); });
-    res.appendChild(group({ title: 'Mots gardés', node: box, tag: pl(ST.palette.length, 'mot') }));
-    var sure = false, c = h('button', { type: 'button', class: 'btn', text: 'Vider la palette', onclick: function () { if (!sure) { sure = true; c.textContent = 'Confirmer : tout effacer'; return; } ST.palette = []; save(); paintNav(); refresh(); } });
+    res.appendChild(box);
+    var sure = false, c = h('button', { type: 'button', class: 'btn', text: 'Tout retirer', onclick: function () { if (!sure) { sure = true; c.textContent = 'Confirmer le retrait'; return; } ST.palette = []; save(); paintNav(); refresh(); } });
     res.appendChild(h('div', { class: 'row' }, h('button', { type: 'button', class: 'btn', text: 'Copier la liste', onclick: function (e) { copy(ST.palette.join(', '), e.target, 'Copier la liste'); } }), c));
   }
   function copy(text, btn, back) {
@@ -535,11 +585,13 @@
   /* ---------- panneaux ---------- */
   function closePanels() {
     [menu, settings, pick].forEach(function (p) { p.classList.remove('open'); });
+    $('#bset').setAttribute('aria-expanded', 'false');
     scrim.hidden = true; scrim.className = '';
   }
   function openPanel(p, soft) {
     closePanels();
     p.classList.add('open');
+    if (p === settings) $('#bset').setAttribute('aria-expanded', 'true');
     if (p === settings && isWide()) return;
     if (p === pick && !isMob()) return;
     scrim.hidden = false; scrim.className = soft ? 'soft' : '';
@@ -607,20 +659,29 @@
       var q = L.analyze(w);
       if (q.syl.length) menu.appendChild(h('p', { class: 'meta', text: L.spell(q.syl) + ' · ' + pl(q.syl.length, 'syllabe') }));
     }
-    var go = function (tool) { return function () { remember(); ST.seed = w; ST.over = i >= 0 ? i : null; closePanels(); setTool(tool); remember(); window.scrollTo(0, 0); }; };
+    var go = function (tool) { return function () { searchFor(w, tool, i >= 0 ? i : null); }; };
     var k = kept(w), acts = h('div', { class: 'acts' });
     acts.appendChild(h('button', {
-      type: 'button', class: 'btn pri wide', text: k ? 'Retirer de ma palette' : 'Garder dans ma palette', onclick: function () {
+      type: 'button', class: 'btn pri', text: k ? 'Retirer ce mot' : 'Garder ce mot', onclick: function () {
         if (k) ST.palette = ST.palette.filter(function (x) { return x !== w; }); else ST.palette.push(w);
         save(); closePanels(); paintNav();
         if (ST.tool === 'palette') refresh(); else el.classList.toggle('kept', !k);
       }
     }));
-    [['rimes', 'Rimes'], ['multi', 'Multisyllabes'], ['voisins', 'Voisins'], ['synonymes', 'Synonymes'], ['famille', 'Famille'], ['chaines', 'Enchaînements']].forEach(function (a) { acts.appendChild(h('button', { type: 'button', class: 'btn', text: a[1], onclick: go(a[0]) })); });
-    var cb = h('button', { type: 'button', class: 'btn', text: 'Copier', onclick: function () { copy(w, cb, 'Copier'); } });
-    acts.appendChild(cb);
-    acts.appendChild(h('button', { type: 'button', class: 'btn', text: 'Ajouter au texte', onclick: function (e) { ST.texte = ST.texte === EXEMPLE ? w : ST.texte + (/(^|\s)$/.test(ST.texte) ? '' : ' ') + w; save(); e.target.textContent = 'Ajouté'; setTimeout(closePanels, 700); } }));
+    acts.appendChild(h('button', { type: 'button', class: 'btn', text: 'Ajouter au texte', onclick: function (e) {
+      addToDraft(w, /\s$/.test(ST.texte) ? '' : ' ');
+      if (ST.tool === 'atelier') refresh();
+      e.target.textContent = 'Ajouté';
+      e.target.disabled = true;
+    } }));
     menu.appendChild(acts);
+    var searches = h('div', { class: 'acts' });
+    [['rimes', 'Rimes'], ['multi', 'Rimes multi'], ['synonymes', 'Synonymes'], ['voisins', 'Homophones'], ['famille', 'Famille du mot'], ['chaines', 'Enchaînements']].forEach(function (a) {
+      searches.appendChild(h('button', { type: 'button', class: 'btn', text: a[1], onclick: go(a[0]) }));
+    });
+    menu.appendChild(h('div', { class: 'fld word-search' }, h('p', { text: 'Chercher avec ce mot' }), searches));
+    var cb = h('button', { type: 'button', class: 'btn', text: 'Copier', onclick: function () { copy(w, cb, 'Copier'); } });
+    menu.appendChild(cb);
     menu.style.left = ''; menu.style.top = '';
     if (isMob()) openPanel(menu);
     else {
@@ -634,7 +695,7 @@
   document.addEventListener('click', function (e) {
     if (!e.target.closest) return;
     var sd = e.target.closest('[data-seed]');
-    if (sd) { ST.seed = sd.getAttribute('data-seed'); ST.over = null; paintHeader(); refresh(); return; }
+    if (sd) { searchFor(sd.getAttribute('data-seed'), ST.tool); $('#ttl').focus({ preventScroll: true }); return; }
     var t = e.target.closest('[data-i],[data-t]');
     if (t && !menu.contains(t)) { e.preventDefault(); openMenu(t); return; }
     if (!isMob() && menu.classList.contains('open') && !menu.contains(e.target)) menu.classList.remove('open');
@@ -642,42 +703,115 @@
   window.addEventListener('scroll', function () { if (!isMob() && menu.classList.contains('open')) menu.classList.remove('open'); }, { passive: true });
 
   /* ---------- navigation ---------- */
+  var SEARCH_MODES = [['rimes', 'Rimes'], ['multi', 'Rimes multi'], ['synonymes', 'Synonymes']];
+  var searchModes = $('#tools'), tabs = $('#tabs'), navTools = $('#side');
+  function isMainSearch(id) { return SEARCH_MODES.some(function (mode) { return mode[0] === id; }); }
+  SEARCH_MODES.forEach(function (mode) {
+    searchModes.appendChild(h('button', { type: 'button', 'data-tool': mode[0], text: mode[1], onclick: function () { setTool(mode[0]); } }));
+  });
+  var mainNav = [
+    ['search', 'Chercher', function () { setTool(ST.searchTool); }],
+    ['atelier', 'Écrire', function () { setTool('atelier'); }],
+    ['palette', 'Mots gardés', function () { setTool('palette'); }],
+    ['catalog', 'Outils', function () { closePanels(); catalog.showModal(); }]
+  ];
+  mainNav.forEach(function (entry) {
+    var icon = { search: 'search', atelier: 'Écrire', palette: 'saved', catalog: 'catalog' }[entry[0]];
+    tabs.appendChild(h('button', {
+      type: 'button', 'data-nav': entry[0], 'aria-haspopup': entry[0] === 'catalog' ? 'dialog' : null, onclick: entry[2]
+    }, h('span', { class: 'nav-icon', html: ICON[icon] }, h('small', { class: 'saved-count', hidden: true })), entry[1]));
+  });
+  catalog.addEventListener('click', function (e) { if (e.target === catalog) catalog.close(); });
+  var catalogGroups = [
+    ['Faire sonner une phrase', [
+      ['rimes', 'Trouver des mots qui riment'], ['multi', 'Faire rimer plusieurs syllabes'],
+      ['voisins', 'Trouver des homophones et des sons proches'], ['decoupe', 'Redécouper une phrase en gardant ses sons'],
+      ['sons', 'Chercher les mots qui contiennent des sons précis'], ['squelette', 'Garder les consonnes, changer les voyelles'],
+      ['chaines', 'Assembler des mots par leurs sons'], ['verlan', 'Retourner ou échanger des syllabes']
+    ]],
+    ['Trouver le bon mot', [
+      ['synonymes', 'Remplacer un mot par un autre de sens proche'], ['famille', 'Explorer les formes d’un mot'],
+      ['lettres', 'Chercher des mots qui contiennent certaines lettres'], ['motif', 'Compléter un mot à trous'],
+      ['anagrammes', 'Recomposer un mot avec des lettres']
+    ]],
+    ['Écrire et garder ses idées', [
+      ['atelier', 'Écrire un texte et voir les syllabes de chaque ligne'], ['palette', 'Retrouver les mots mis de côté'],
+      ['hasard', 'Tirer des mots et une rime pour démarrer']
+    ]]
+  ];
+  catalogGroups.forEach(function (g) {
+    var section = h('section', { class: 'catalog-group' }, h('h3', { text: g[0] }));
+    g[1].forEach(function (entry) {
+      var id = entry[0], tool = BY[id];
+      section.appendChild(h('button', { type: 'button', 'data-catalog': id, onclick: function () {
+        catalog.close();
+        setTool(id);
+        $('#ttl').focus({ preventScroll: true });
+      } }, h('strong', { text: tool.full || tool.name }), h('span', { text: entry[1] })));
+    });
+    $('#catalog-list').appendChild(section);
+  });
+
   function paintNav() {
-    var t = BY[ST.tool], tabs = $('#tabs'), tools = $('#tools'), side = $('#side');
-    tabs.textContent = ''; tools.textContent = ''; side.textContent = '';
+    var t = BY[ST.tool];
+    searchModes.hidden = t.input !== 'seed';
+    searchModes.querySelectorAll('button').forEach(function (b) {
+      if (b.dataset.tool === t.id) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+    });
+    var current = isMainSearch(t.id) ? 'search' : (t.id === 'atelier' || t.id === 'palette' ? t.id : 'catalog');
+    tabs.querySelectorAll('button').forEach(function (b) {
+      if (b.dataset.nav === current) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+    var count = tabs.querySelector('[data-nav="palette"] .saved-count');
+    count.textContent = ST.palette.length > 99 ? '99+' : String(ST.palette.length);
+    count.hidden = !ST.palette.length;
+    catalog.querySelectorAll('[data-catalog]').forEach(function (b) {
+      if (b.dataset.catalog === t.id) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+    navTools.textContent = '';
     GROUPS.forEach(function (g) {
-      tabs.appendChild(h('button', { type: 'button', 'aria-current': String(t.g === g), onclick: function () { if (BY[ST.tool].g === g) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; } setTool(ST.last[g] && BY[ST.last[g]] ? ST.last[g] : GT[g][0].id); window.scrollTo(0, 0); } }, h('span', { html: ICON[g] }), g));
       var box = h('div', { class: 'navg' }, h('h3', { text: g }));
       GT[g].forEach(function (x) { box.appendChild(h('button', { type: 'button', class: 'navb', 'aria-current': x.id === t.id ? 'page' : null, onclick: function () { setTool(x.id); } }, x.full || x.name, x.id === 'palette' && ST.palette.length ? h('span', { class: 'n', text: String(ST.palette.length) }) : null)); });
-      side.appendChild(box);
+      navTools.appendChild(box);
     });
-    GT[t.g].forEach(function (x) {
-      tools.appendChild(h('button', { type: 'button', class: 'tchip', role: 'tab', 'aria-selected': String(x.id === t.id), onclick: function () { setTool(x.id); } }, x.name + (x.id === 'palette' && ST.palette.length ? ' · ' + ST.palette.length : '')));
-    });
-    var cur = tools.querySelector('[aria-selected="true"]');
-    if (cur) tools.scrollLeft = Math.max(0, cur.offsetLeft - 60);
   }
   function inputVal(t) { return t.input === 'seed' ? ST.seed : t.input === 'lettres' ? ST.lettres.q : t.input === 'motif' ? ST.motif : t.input === 'anag' ? ST.anag : ''; }
   function setInputVal(t, v) {
-    if (t.input === 'seed') { ST.seed = v; ST.over = null; } else if (t.input === 'lettres') ST.lettres.q = v; else if (t.input === 'motif') ST.motif = v; else if (t.input === 'anag') ST.anag = v;
+    if (t.input === 'seed') setSeed(v); else if (t.input === 'lettres') ST.lettres.q = v; else if (t.input === 'motif') ST.motif = v; else if (t.input === 'anag') ST.anag = v;
   }
+  function fitQuery() {
+    clr.hidden = !qIn.value;
+    qIn.style.height = 'auto';
+    qIn.style.height = qIn.scrollHeight + 'px';
+  }
+  window.addEventListener('resize', function () { if (!$('#field').hidden) fitQuery(); });
   function paintHeader() {
     var t = BY[ST.tool], isIn = t.input && t.input !== 'sons';
-    $('#field').hidden = !isIn; $('#toks').hidden = t.input !== 'sons'; $('#ttl').hidden = !!t.input;
+    bar.hidden = !t.input;
+    $('#field').hidden = !isIn; $('#toks').hidden = t.input !== 'sons';
+    $('#ttl').textContent = { rimes: 'Trouver des rimes', multi: 'Rimes multisyllabiques', synonymes: 'Trouver des synonymes', atelier: 'Ton atelier', palette: 'Mots gardés' }[t.id] || t.full || t.name;
+    $('#intro').textContent = {
+      rimes: 'La recherche part du dernier mot de ta phrase.',
+      multi: 'Fais rimer plusieurs syllabes de ta fin de phrase.',
+      synonymes: 'Trouve un autre mot pour exprimer la même idée.',
+      atelier: 'Écris tes paroles, une ligne par vers.',
+      palette: 'Tes mots mis de côté pendant l’écriture.'
+    }[t.id] || t.desc;
     if (isIn) {
       if (qIn.value !== inputVal(t)) qIn.value = inputVal(t);
-      qIn.placeholder = t.input === 'seed' ? 'Un mot, une phrase…' : t.ph;
-      qIn.setAttribute('aria-label', t.input === 'seed' ? 'Ton mot, ton groupe de mots ou ta phrase' : t.label);
+      qIn.placeholder = t.input === 'seed' ? 'Écris un mot ou une phrase' : t.ph;
+      qIn.setAttribute('aria-label', t.input === 'seed' ? 'Mot ou phrase à chercher' : t.label);
       qIn.style.fontFamily = t.input === 'seed' ? '' : 'var(--f-mono)';
       qIn.style.letterSpacing = t.input === 'seed' ? '' : '.06em';
-      clr.hidden = !qIn.value;
+      fitQuery();
     } else if (t.input === 'sons') {
       var tk = $('#toks'); tk.textContent = '';
       ST.sons.sel.forEach(function (c, i) { tk.appendChild(h('button', { type: 'button', class: 'tok', 'aria-label': 'Retirer le son ' + SLAB[c], text: SLAB[c] + ' ×', onclick: function () { ST.sons.sel.splice(i, 1); paintHeader(); refresh(); } })); });
       tk.appendChild(h('button', { type: 'button', class: 'addtok', text: ST.sons.sel.length ? '+ Son' : '+ Choisir des sons', onclick: function () { paintPick(); openPanel(pick, true); } }));
       tk.scrollLeft = tk.scrollWidth;
-    } else $('#ttl').textContent = t.full || t.name;
+    }
     $('#bset').hidden = !(t.filt || t.loose || t.extra);
+    $('.tool-head').toggleAttribute('data-main-search', isMainSearch(t.id));
     pick.hidden = t.input !== 'sons';
     if (t.input === 'sons') paintPick();
   }
@@ -688,27 +822,48 @@
     el.scrollLeft = sl;
   }
   function paintRead(n) {
-    var el = $('#read'), t = BY[ST.tool]; el.textContent = '';
+    var el = $('#read'), ctx = $('#context'), t = BY[ST.tool];
+    el.textContent = '';
+    ctx.textContent = '';
+    $('#intro').hidden = t.id === 'rimes' && !!(Q && Q.last);
+    $('#pronunciation').hidden = !(t.input === 'seed' && Q && Q.last);
     if (t.input === 'seed' && Q && Q.syl.length) {
+      var lt = Q.last;
+      if (t.id === 'rimes') ctx.appendChild(h('span', { class: 'target', text: 'Rime avec « ' + lt.raw + ' »' }));
+      if (t.id === 'multi') ctx.appendChild(h('span', { class: 'target', text: pl(Q.syl.length, 'syllabe') + ' dans ta recherche' }));
+      if (t.id === 'synonymes' && Q.words.length > 1) {
+        var select = h('select', { id: 'syn-word', onchange: function () {
+          ST.synWord = select.value;
+          refresh();
+          $('#syn-word').focus({ preventScroll: true });
+        } });
+        var defaultTarget = defaultSynonymTarget();
+        select.appendChild(h('option', { value: '', text: defaultTarget, selected: !ST.synWord }));
+        Array.from(new Set(Q.words.map(function (word) { return word.raw; }))).forEach(function (word) {
+          if (word !== defaultTarget) select.appendChild(h('option', { value: word, text: word, selected: word === ST.synWord }));
+        });
+        ctx.appendChild(h('label', { class: 'target' }, 'Mot à remplacer', select));
+      }
       el.appendChild(h('b', { text: L.spell(Q.syl) }));
       el.appendChild(h('span', { class: 'cnt', text: pl(Q.syl.length, 'syllabe') }));
-      var lt = Q.last;
       if (lt && lt.alts.length > 1) lt.alts.forEach(function (a) { el.appendChild(h('button', { type: 'button', class: 'alt', title: 'Autre prononciation de « ' + lt.raw + ' »', text: L.spellI(a), 'aria-pressed': String(a === lt.idx), onclick: function () { ST.over = a; save(); refresh(); } })); });
       var g = Q.toks.filter(function (x) { return x.guessed; }).map(function (x) { return x.raw; });
       if (g.length) el.appendChild(h('span', { text: 'prononciation devinée : ' + g.join(', ') }));
     }
-    if (n) el.appendChild(h('span', { class: 'tot', text: pl(n, 'résultat') }));
+    if (n) ctx.appendChild(h('span', { class: 'result-count', text: pl(n, 'résultat') }));
     var bd = $('#badge'), af = BY[ST.tool].filt ? activeFilters() : 0;
+    if ((t.id === 'rimes' && ST.sens.trim()) || (t.id === 'synonymes' && ST.synRime.trim()) || (t.id === 'multi' && ST.multiN)) af++;
     bd.hidden = !af; bd.textContent = String(af);
   }
   function syncUrl() {
     var t = BY[ST.tool];
-    try { history.replaceState(null, '', (t.input === 'seed' && ST.seed.trim() && ST.seed !== EX_SEED ? '?q=' + encodeURIComponent(ST.seed.trim()) : location.pathname) + '#' + ST.tool); } catch (e) { }
+    try { history.replaceState(null, '', (t.input === 'seed' && ST.seed.trim() ? '?q=' + encodeURIComponent(ST.seed.trim()) : location.pathname) + '#' + ST.tool); } catch (e) { }
   }
-  function refresh(fromTyping) {
+  function refresh() {
     if (!D.n) return;
     applyF(); seedQ();
     var t = BY[ST.tool], res = $('#results');
+    if (t.id === 'multi' && ST.multiN > Q.syl.length) ST.multiN = 0;
     paintQuick();
     if (isWide() && !settings.contains(document.activeElement)) paintSettings();
     res.textContent = '';
@@ -719,36 +874,43 @@
     groups.forEach(function (g) { fr.appendChild(group(g)); });
     res.appendChild(fr);
     save(); syncUrl();
-    if (fromTyping && isMob()) { var top = brand.offsetHeight; if (window.scrollY > top) window.scrollTo(0, top); }
   }
   function setTool(id) {
     if (!BY[id]) id = 'rimes';
-    ST.tool = id; ST.last[BY[id].g] = id;
+    ST.tool = id;
+    if (isMainSearch(id)) ST.searchTool = id;
     closePanels();
+    $('#pronunciation').open = false;
     if (D.n) { applyF(); seedQ(); }
     paintNav(); paintHeader();
     if (isWide()) { paintSettings(); settings.classList.add('open'); }
     refresh();
+    window.scrollTo(0, 0);
   }
   window.addEventListener('hashchange', function () { var id = location.hash.slice(1); if (BY[id] && id !== ST.tool) setTool(id); });
 
   /* ---------- saisie ---------- */
   qIn.addEventListener('input', function () {
-    setInputVal(BY[ST.tool], qIn.value); clr.hidden = !qIn.value;
-    clearTimeout(rT); rT = setTimeout(function () { refresh(true); }, 90);
-  });
-  qIn.addEventListener('focus', function () {
-    if (BY[ST.tool].input === 'seed' && ST.seed === EX_SEED) { try { qIn.select(); } catch (e) { } }
-    if (isMob()) setTimeout(function () { window.scrollTo(0, brand.offsetHeight); }, 60);
+    setInputVal(BY[ST.tool], qIn.value); fitQuery();
+    clearTimeout(rT);
+    rT = setTimeout(refresh, 90);
   });
   qIn.addEventListener('blur', remember);
-  qIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') qIn.blur(); });
+  qIn.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.isComposing) {
+      e.preventDefault();
+      clearTimeout(rT);
+      qIn.blur();
+      refresh();
+      window.scrollTo(0, 0);
+    }
+  });
   clr.addEventListener('mousedown', function (e) { e.preventDefault(); });
-  clr.addEventListener('click', function () { qIn.value = ''; setInputVal(BY[ST.tool], ''); clr.hidden = true; qIn.focus(); refresh(true); });
+  clr.addEventListener('click', function () { remember(); qIn.value = ''; setInputVal(BY[ST.tool], ''); fitQuery(); qIn.focus(); refresh(); window.scrollTo(0, 0); });
   /* le clavier ouvert, la barre du bas s'efface pour laisser la place aux résultats */
-  var kbT = 0;
-  document.addEventListener('focusin', function (e) { if (e.target.matches && e.target.matches('input[type=text],input[type=number],textarea')) { clearTimeout(kbT); document.body.classList.add('kb'); } });
-  document.addEventListener('focusout', function () { clearTimeout(kbT); kbT = setTimeout(function () { document.body.classList.remove('kb'); }, 120); });
+  var textControl = 'input[type=text],input[type=number],textarea';
+  document.addEventListener('focusin', function (e) { document.body.classList.toggle('kb', e.target.matches(textControl)); });
+  document.addEventListener('focusout', function () { document.body.classList.remove('kb'); });
   var mq = window.matchMedia('(min-width:1120px)');
   var onMq = function () { closePanels(); if (isWide()) { paintSettings(); settings.classList.add('open'); } };
   if (mq.addEventListener) mq.addEventListener('change', onMq); else if (mq.addListener) mq.addListener(onMq);
@@ -757,7 +919,8 @@
   var start = location.hash.slice(1), qp = null;
   try { qp = new URLSearchParams(location.search).get('q'); } catch (e) { }
   if (BY[start]) ST.tool = start; else if (!BY[ST.tool]) ST.tool = 'rimes';
-  if (qp) { ST.seed = qp; ST.over = null; }
+  if (!isMainSearch(ST.searchTool)) ST.searchTool = 'rimes';
+  if (qp && qp !== ST.seed) setSeed(qp);
   paintNav(); paintHeader();
   $('#results').appendChild(empty('Chargement du dictionnaire : 125 000 mots et leur prononciation…'));
   fetch('data/lexique.txt').then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); }).then(function (txtData) {
